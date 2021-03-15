@@ -30,6 +30,8 @@ dependencies {
     
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'com.alibaba:druid:1.1.21'
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:2.1.1'
+
 }
 
 test {

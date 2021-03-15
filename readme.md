@@ -259,3 +259,55 @@ readme.md
              driver-class-name: com.mysql.cj.jdbc.Driver
     +        type: com.alibaba.druid.pool.DruidDataSource
     ```
+
+### 整合mybatis
+
+1. 选上如下东西:  
+    ![Image](./img/image_2021-03-15-23-02-47.png)
+
+2. 点击explore按钮  
+   ![Image](./img/image_2021-03-15-23-01-25.png)
+
+3. 编写`application.properties`,整合mybatis
+    ```
+    spring.datasource.username=root
+    spring.datasource.password=Abcd1234
+    spring.datasource.url=jdbc:mysql://127.0.0.1:3306/mybatis?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+    spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+    
+    # 整合mybatis
+    mybatis.type-aliases-package=com.kuang.pojo # mybatis的包扫描
+    mybatis.mapper-locations=classpath:mybatis/mapper/*.xml # mybatis的xml的存放路径 可以在resources文件夹下建个mybatis目录，再在mybatis目录下建个mapper目录，在mapper目录下编写.xml配置文件
+    ```
+
+4. 编写pojo
+
+5. 编写接口`xxMapper`,比如:
+    ```
+    //这个注解表示这是一个mybatis的mapper类: Dao
+    @Mapper
+    @Reqository
+    public interface UserMapper {
+        List<User> queryUserList();
+
+        User queryUserById(int id);
+    }
+    ```
+
+6. 编写mybatis xxMapper接口对应的.xml配置文件
+
+7. 编写控制层
+    ```
+    @RestController
+    public class UserController {
+        @AutoWired
+        private UserMapper userMapper;
+
+        @GetMapping("queryUserList")
+        public List<User> userList = userMapper.queryUserList();
+        for (User user : userList) {
+            System.out.println(user);
+        }
+        return userList;
+    }
+    ```
