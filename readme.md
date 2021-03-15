@@ -42,9 +42,24 @@ readme.md
 #### 总结：
 
 1. 在springboot中，我们可以用一下方式处理静态资源  
-    ** webjars `localhost:8080/webjars/`  
-    ** public,static,/**,resources `localhost:8080/`  
+    webjars `localhost:8080/webjars/`  
+    public,static,/**,resources `localhost:8080/`  
 
 2. 优先级: resouces > static(默认) > public  
 
 3. 在templates目录下的所有页面，只能通过controller来跳转  
+
+### thymeleaf
+
+1. 导入依赖:`implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'`(通过`https://start.spring.io/`选上spring web和thymeleaf,然后点击expose按钮查看spirng官网自动生成的build.gradle文件中的依赖,把依赖复制到我们的这个项目里)
+
+2. thymeleaf的templates目录解析原理,请查看源码`ThymeleafProperties.java`:
+    ```
+    public static final String DEFAULT_PREFIX = "classpath:/templates/";
+    public static final String DEFAULT_PREFIX = ".html";
+    ```
+
+3. 导入依赖后，我们将html放在templates目录下即可使用thymeleaf模板引擎的功能了  
+
+4. 在`.html`文件中使用thymeleaf的时候请注意在`.html`中导入约束`<html xmlns:th=http://www.thymeleaf.org>`  
+
