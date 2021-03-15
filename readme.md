@@ -233,3 +233,29 @@ readme.md
 7. 测试`gradle bootRun`,访问`127.0.0.1/userList`
 
 ### 整合Druid数据源
+
+1. 只需导入`druid`依赖和在`application.yml`中添加一行`type: com.alibaba.druid.pool.DruidDataSource`即可
+    ```
+    kalipy@debian ~/b/j/k/demo> git diff 
+    diff --git a/demo/build.gradle b/demo/build.gradle
+    index 702628b..268e594 100644
+    --- a/demo/build.gradle
+    +++ b/demo/build.gradle
+    @@ -29,6 +29,7 @@ dependencies {
+         testImplementation 'org.springframework.boot:spring-boot-starter-test'
+         
+         implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    +    implementation 'com.alibaba:druid:1.1.21'
+     }
+     
+     test {
+    diff --git a/demo/src/main/resources/application.yml b/demo/src/main/resources/application.yml
+    index 25f0529..3472c90 100644
+    --- a/demo/src/main/resources/application.yml
+    +++ b/demo/src/main/resources/application.yml
+    @@ -4,3 +4,4 @@ spring:
+             password: Abcd1234
+             url: jdbc:mysql://127.0.0.1:3306/mybatis?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+             driver-class-name: com.mysql.cj.jdbc.Driver
+    +        type: com.alibaba.druid.pool.DruidDataSource
+    ```
