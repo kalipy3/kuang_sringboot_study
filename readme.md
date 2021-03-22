@@ -311,3 +311,224 @@ readme.md
         return userList;
     }
     ```
+
+### SpringSecurity
+
+#### 什么是springsecurity?
+
+Spring Security是一个能够为基于Spring的企业应用系统提供声明式的安全访问控制解决方案的安全框架。它提供了一组可以在Spring应用上下文中配置的Bean，充分利用了Spring IoC，DI（控制反转Inversion of Control ,DI:Dependency Injection 依赖注入）和AOP（面向切面编程）功能，为应用系统提供声明式的安全访问控制功能，减少了为企业系统安全控制编写大量重复代码的工作。
+
+#### 功能(认证 授权)
+
+* 功能权限
+
+* 访问权限
+
+* 菜单权限
+
+* 拦截器，过滤器:大量原生代码冗余
+
+Spring Security对Web安全性的支持大量地依赖于Servlet过滤器。这些过滤器拦截进入请求，并且在应用程序处理该请求之前进行某些安全处理。 Spring Security提供有若干个过滤器，它们能够拦截Servlet请求，并将这些请求转给认证和访问决策管理器处理，从而增强安全性。根据自己的需要，可以使用适当的过滤器来保护自己的应用程序。
+
+如果使用过Servlet过滤器且令其正常工作，就必须在Web应用程序的web.xml文件中使用<filter> 和<filter-mapping>元素配置它们。虽然这样做能起作用，但是它并不适用于使用依赖注入进行的配置。
+
+FilterToBeanProxy是一个特殊的Servlet过滤器，它本身做的工作并不多，而是将自己的工作委托给Spring应用程序上下文 中的一个Bean来完成。被委托的Bean几乎和其他的Servlet过滤器一样，实现javax.servlet.Filter接口，但它是在Spring配置文件而不是web.xml文件中配置的。
+
+实际上，FilterToBeanProxy代理给的那个Bean可以是javax.servlet.Filter的任意实现。这可以是 Spring Security的任何一个过滤器，或者它可以是自己创建的一个过滤器。但是正如本书已经提到的那样，Spring Security要求至少配置四个而且可能一打或者更多的过滤器。
+
+#### 简介
+
+只需要引入`spring-boot-starter-security`模块，进行少量的配置，即可实现强大的安全管理
+
+记住几个类:
+
+* WebSecurityConfigurerAdapter: 自定义安全策略
+
+* AuthenticationManagerBuilder: 自定义认证策略
+
+* @EnableWebSecurity: 开启WebSecurity模式
+
+Spring Security的两个主要目标是`认证(Authentication)`和`授权(Authorization)`(访问控制)
+
+### [实战]不同角色登录有不同的访问控制权限
+
+#### 导入依赖
+
+![Image](./img/image_2021-03-22-12-59-54.png)
+
+    plugins {
+    	id 'org.springframework.boot' version '2.4.4'
+    	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    	id 'java'
+    }
+    
+    group = 'com.example'
+    version = '0.0.1-SNAPSHOT'
+    sourceCompatibility = '1.8'
+
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/central'}
+        maven { url 'https://maven.aliyun.com/repository/google'}
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin'}
+        maven { url 'https://maven.aliyun.com/repository/spring'}
+        maven { url 'https://maven.aliyun.com/repository/spring-plugin'}
+        maven { url 'https://maven.aliyun.com/repository/apache-snapshots'}
+    
+        mavenLocal()
+        mavenCentral()
+    }
+    
+    dependencies {
+    	implementation 'org.springframework.boot:spring-boot-starter-security'
+    	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    	implementation 'org.springframework.boot:spring-boot-starter-web'
+    	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity5'
+    	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    	testImplementation 'org.springframework.security:spring-security-test'
+    }
+    
+    test {
+    	useJUnitPlatform()
+    }
+
+#### 项目结构如下:
+
+    kalipy@debian ~/b/j/k/d/demo> tree src/
+    src/
+    ├── main
+    │   ├── java
+    │   │   └── com
+    │   │       └── example
+    │   │           └── demo
+    │   │               ├── config
+    │   │               │   └── SecurityConfig.java
+    │   │               ├── controller
+    │   │               │   └── RouterController.java
+    │   │               └── DemoApplication.java
+    │   └── resources
+    │       ├── application.properties
+    │       ├── static
+    │       └── templates
+    │           ├── index.html
+    │           └── views
+    │               ├── level1
+    │               │   ├── 1.html
+    │               │   ├── 2.html
+    │               │   └── 3.html
+    │               ├── level2
+    │               │   ├── 1.html
+    │               │   ├── 2.html
+    │               │   └── 3.html
+    │               ├── level3
+    │               │   ├── 1.html
+    │               │   ├── 2.html
+    │               │   └── 3.html
+    │               └── login.html
+
+#### 编写控制层
+
+RouterController.java
+
+    package com.example.demo.controller;
+    
+    import org.springframework.stereotype.Controller;
+    
+    import org.springframework.web.bind.annotation.PathVariable;
+    import org.springframework.web.bind.annotation.RequestMapping;
+    
+    /*
+     * RouterController.java
+     * Copyright (C) 2021 2021-03-22 13:38 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    @Controller
+    public class RouterController
+    {
+        @RequestMapping({"/", "/index"})
+        public String index() {
+            return "index";
+        }
+        
+        @RequestMapping("/toLogin")
+        public String toLogin() {
+            return "views/login";
+        }
+        
+        @RequestMapping("/level1/{id}")
+        public String level1(@PathVariable("id") int id) {
+            return "views/level1/" + id;
+        }
+        @RequestMapping("/level2/{id}")
+        public String level2(@PathVariable("id") int id) {
+            return "views/level2/" + id;
+        }
+        @RequestMapping("/level3/{id}")
+        public String level3(@PathVariable("id") int id) {
+            return "views/level3/" + id;
+        }
+    }
+    
+#### 编写配置类
+
+SecurityConfig.java
+
+    package com.example.demo.config;
+    
+    import org.springframework.security.authentication.AuthenticationManager;
+    import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+    
+    import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+    import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+    import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+    import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+    
+    /*
+     * SecurityConfig.java
+     * Copyright (C) 2021 2021-03-22 13:15 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    
+    //AOP拦截器
+    @EnableWebSecurity
+    public class SecurityConfig extends WebSecurityConfigurerAdapter 
+    {
+        //授权
+        @Override
+        public void configure(HttpSecurity http) throws Exception {
+            //首页所有人可以访问，功能页只有对应权限的人才能访问
+            //请求授权的规则
+            http.authorizeRequests()
+                .antMatchers("/").permitAll()
+                .antMatchers("/level1/**").hasRole("vip1")
+                .antMatchers("/level2/**").hasRole("vip2")
+                .antMatchers("/level3/**").hasRole("vip3");
+    
+            //没有权限默认到登录页面
+            http.formLogin();
+        
+            //注销，开启了注销功能，跳到首页
+            http.logout().logoutSuccessUrl("/");
+
+            //开启记住我功能 cookie，默认保存两周
+            http.rememberMe();
+        }
+    
+        //认证, springboot 2.1.x可以直接使用
+        //在spring security 5.0+ 需要对密码加密，不然会报错
+        @Override
+        public void configure(AuthenticationManagerBuilder auth) throws Exception {
+            auth.inMemoryAuthentication().passwordEncoder(new BCryptPasswordEncoder())//这些数据通常应该从数据库里得到，这里为了方便我们直接从内存里面放入假数据
+                .withUser("hanser").password(new BCryptPasswordEncoder().encode("123456")).roles("vip2", "vip3")
+                .and()
+                .withUser("root").password(new BCryptPasswordEncoder().encode("123456")).roles("vip1", "vip2", "vip3")
+                .and()
+                .withUser("yousa").password(new BCryptPasswordEncoder().encode("123456")).roles("vip1");
+        }
+    }
+
+#### 测试
+
+浏览器访问`http://127.0.0.1:8080/levelx/y`,会自动跳转到springboot自带的login页面，我们输入hanser或root或yousa的账号进行登录后，不同角色有不同的页面访问权限
