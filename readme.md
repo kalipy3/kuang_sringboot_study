@@ -560,7 +560,7 @@ Shiro内置了可以连接大量安全数据源（又名目录）的Realm，如L
 
 ![Image](./img/image_2021-03-22-14-53-45.png)
 
-### Springboot整合Shiro
+### Springboot整合Shiro环境搭建
 
 #### 快速开始
 
@@ -569,5 +569,253 @@ Shiro内置了可以连接大量安全数据源（又名目录）的Realm，如L
 #### 导入Shiro依赖
 
 	implementation 'org.apache.shiro:shiro-spring:1.4.1'
+
+#### 代码结构如下
+
+    kalipy@debian ~/b/j/k/d/demo> tree src/
+    src/
+    ├── main
+    │   ├── java
+    │   │   └── com
+    │   │       └── example
+    │   │           └── demo
+    │   │               ├── config
+    │   │               │   ├── ShiroConfig.java
+    │   │               │   └── UserRealm.java
+    │   │               ├── controller
+    │   │               │   └── MyController.java
+    │   │               └── DemoApplication.java
+    │   └── resources
+    │       ├── application.properties
+    │       ├── static
+    │       └── templates
+    │           ├── index.html
+    │           └── user
+    │               ├── add.html
+    │               └── update.html
+
+#### 编写配置类
+
+UserRealm.java
+
+    package com.example.demo.config;
+    
+    import org.apache.shiro.authc.AuthenticationException;
+    import org.apache.shiro.authc.AuthenticationInfo;
+    import org.apache.shiro.authc.AuthenticationToken;
+    import org.apache.shiro.authz.AuthorizationInfo;
+    import org.apache.shiro.realm.AuthorizingRealm;
+    import org.apache.shiro.subject.PrincipalCollection;
+    
+    /*
+     * UserRealm.java
+     * Copyright (C) 2021 2021-03-22 17:03 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    
+    //自定义的UserRealm
+    public class UserRealm extends AuthorizingRealm
+    {
+        //授权
+        @Override 
+        protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principals)
+        {
+            System.out.println("执行了授权方法..");
+            return null;
+        }
+    
+        //认证
+        @Override 
+        protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) throws AuthenticationException {
+            System.out.println("执行了认证方法..");
+            return null;
+        }
+    }
+
+编写ShiroConfig.java
+
+    package com.example.demo.config;
+    
+    import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
+    
+    import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
+    
+    import org.springframework.beans.factory.annotation.Qualifier;
+    
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+    
+    /*
+     * ShiroConfig.java
+     * Copyright (C) 2021 2021-03-22 17:01 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    @Configuration
+    public class ShiroConfig
+    {
+        //ShiroFilterFactoryBean
+        @Bean
+        public ShiroFilterFactoryBean getShiroFilterFactoryBean(@Qualifier("securityManager") DefaultWebSecurityManager defaultWebSecurityManager) {
+            ShiroFilterFactoryBean bean = new ShiroFilterFactoryBean();
+            //设置安全管理器
+            bean.setSecurityManager(defaultWebSecurityManager);
+            return bean;
+        }
+        //DefaultWebSecurityManager
+        @Bean(name="securityManager")
+        public DefaultWebSecurityManager getDefaultWebSecurityManager(@Qualifier("userRealm") UserRealm userRealm) {
+            DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
+            //关联UserRealm
+            securityManager.setRealm(userRealm);
+            return securityManager;
+        }
+    
+        //创建realm对象,需要自定义类
+        @Bean
+        public UserRealm userRealm() {
+            return new UserRealm();
+        }
+    }
+
+#### 编写控制层
+
+MyController.java
+
+    package com.example.demo.controller;
+    
+    import org.springframework.stereotype.Controller;
+    import org.springframework.ui.Model;
+    
+    import org.springframework.web.bind.annotation.RequestMapping;
+    
+    /*
+     * MyController.java
+     * Copyright (C) 2021 2021-03-22 17:24 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    @Controller
+    public class MyController
+    {
+        @RequestMapping({"/", "/index"}) 
+        public String toIndex(Model model) {
+            model.addAttribute("msg", "hello Shiro");
+            return "index";
+        }
+        @RequestMapping("/user/add") 
+        public String add() {
+            return "user/add";
+        }
+        @RequestMapping("/user/update") 
+        public String update() {
+            return "user/update";
+        }
+    }
+
+#### 前端页面
+
+index.html
+
+    <!DOCTYPE html>
+    <html lang="en" xmlns:th="http://www.thymeleaf.org">
+    	<head>
+            <meta charset="utf-8" />
+    		<title>Index</title>
+    	</head>
+    	<body>
+    	    <p th:text="${msg}"></p>
+            <br>
+            <a th:href="@{/user/add}">add</a>
+            <a th:href="@{/user/update}">update</a>
+    	</body>
+    </html>
+
+### Shiro登录拦截
+
+#### 代码编写
+
+自己看git与上次(Springboot整合Shiro环境搭建)的对比
+
+    kalipy@debian ~/b/j/k/d/demo> git diff HEAD
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/config/ShiroConfig.java b/demo_shiro/demo/src/main/java/com/example/demo/config/ShiroConfig.java
+    index 760f95f..23ae105 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/config/ShiroConfig.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/config/ShiroConfig.java
+    @@ -1,5 +1,8 @@
+     package com.example.demo.config;
+     
+    +import java.util.LinkedHashMap;
+    +import java.util.Map;
+    +
+     import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
+     
+     import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
+    @@ -24,6 +27,24 @@ public class ShiroConfig
+             ShiroFilterFactoryBean bean = new ShiroFilterFactoryBean();
+             //设置安全管理器
+             bean.setSecurityManager(defaultWebSecurityManager);
+    +
+    +        //添加shiro的内置过滤器
+    +        /*
+    +         * anon: 无需认证就可以访问
+    +         * authc: 必须认证才能访问
+    +         * user: 必须拥有 记住我 功能才能用
+    +         * perms: 拥有对某个资源的权限才能访问
+    +         * role: 拥有某个角色权限才能访问
+    +         */
+    +        Map<String, String> filterMap = new LinkedHashMap<>();
+    +
+    +        filterMap.put("/user/add", "authc");
+    +        filterMap.put("/user/update", "authc");
+    +
+    +        bean.setFilterChainDefinitionMap(filterMap);
+    +        //设置登录页面的请求地址
+    +        bean.setLoginUrl("/toLogin");
+    +
+             return bean;
+         }
+         //DefaultWebSecurityManager
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java b/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    index a328ee2..d47bedb 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    @@ -27,5 +27,9 @@ public class MyController
+         public String update() {
+             return "user/update";
+         }
+    +    @RequestMapping("/toLogin") 
+    +    public String toLogin() {
+    +        return "login";
+    +    }
+     }
+     
+    diff --git a/demo_shiro/demo/src/main/resources/templates/login.html b/demo_shiro/demo/src/main/resources/templates/login.html
+    new file mode 100644
+    index 0000000..9e151d5
+    --- /dev/null
+    +++ b/demo_shiro/demo/src/main/resources/templates/login.html
+    @@ -0,0 +1,16 @@
+    +<!DOCTYPE html>
+    +<html>
+    +       <head>
+    +        <meta charset="utf-8" />
+    +               <title>Login</title>
+    +       </head>
+    +       <body>
+    +           <h1>登录</h1>
+    +        <hr>
+    +        <form action="">
+    +            <p>用户名:<input type="text" name="username"></p>
+    +            <p>密码:<input type="text" name="password"></p>
+    +            <p><input type="submit"></p>
+    +        </form>
+    +       </body>
+    +</html>
+
+#### 测试
+
+浏览器访问`http://127.0.0.1:8080/`,分别点击add 和 update的超链接，发现被拦截到登录页去了
 
 
