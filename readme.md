@@ -927,3 +927,716 @@ index.html
 #### 测试
 
 浏览器访问`http://127.0.0.1:8080/`,分别点击add或update的超链接跳转到登录页后，分别输入正确用户密码和错误用户名密码，查看是否可以认证成功或失败
+
+### shiro整合mybatis
+
+#### 代码编写
+
+自己看git与上次(shiro实现用户认证)的对比
+
+    kalipy@debian ~/b/j/k/d/demo> git diff HEAD
+    diff --git a/demo_shiro/demo/build.gradle b/demo_shiro/demo/build.gradle
+    index bd36e91..28b8f0a 100644
+    --- a/demo_shiro/demo/build.gradle
+    +++ b/demo_shiro/demo/build.gradle
+    @@ -26,6 +26,11 @@ dependencies {
+            implementation 'org.springframework.boot:spring-boot-starter-web'
+            
+            implementation 'org.apache.shiro:shiro-spring:1.4.1'
+    +    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    +    runtimeOnly 'mysql:mysql-connector-java'
+    +    implementation 'com.alibaba:druid:1.1.21'
+    +    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:2.1.4'
+    +    implementation 'log4j:log4j:1.2.17'
+         
+         testImplementation 'org.springframework.boot:spring-boot-starter-test'
+     }
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java b/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    index 386a4fb..6fd5cca 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    @@ -9,6 +9,11 @@ import org.apache.shiro.authz.AuthorizationInfo;
+     import org.apache.shiro.realm.AuthorizingRealm;
+     import org.apache.shiro.subject.PrincipalCollection;
+     
+    +import org.springframework.beans.factory.annotation.Autowired;
+    +
+    +import com.example.demo.pojo.User;
+    +import com.example.demo.service.UserService;
+    +
+     /*
+      * UserRealm.java
+      * Copyright (C) 2021 2021-03-22 17:03 kalipy <kalipy@debian>
+    @@ -19,6 +24,9 @@ import org.apache.shiro.subject.PrincipalCollection;
+     //自定义的UserRealm
+     public class UserRealm extends AuthorizingRealm
+     {
+    +    @Autowired
+    +    UserService userService;
+    +
+         //授权
+         @Override 
+         protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principals)
+    @@ -32,18 +40,17 @@ public class UserRealm extends AuthorizingRealm
+         protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) throws AuthenticationException {
+             System.out.println("执行了认证方法..");
+     
+    -        //我们这里为了方便，直接不从数据库里取，而是硬编码伪造user
+    -        String name = "root";
+    -        String password = "123456";
+    -
+             UsernamePasswordToken userToken = (UsernamePasswordToken) token;
+     
+    -        if (!userToken.getUsername().equals(name)) {
+    +        //查询数据库
+    +        User user = userService.queryUserByName(userToken.getUsername());
+    +
+    +        if (user == null) {
+                 return null;//会自动抛出异常(UnknownAccountException)
+             }
+     
+             //密码认证,shiro自动做了
+    -        return new SimpleAuthenticationInfo("", password, ""); 
+    +        return new SimpleAuthenticationInfo("", user.getPwd(), ""); 
+         }
+     }
+     
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/mapper/UserMapper.java b/demo_shiro/demo/src/main/java/com/example/demo/mapper/UserMapper.java
+    new file mode 100644
+    index 0000000..6897cfb
+    --- /dev/null
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/mapper/UserMapper.java
+    @@ -0,0 +1,21 @@
+    +package com.example.demo.mapper;
+    +
+    +import org.apache.ibatis.annotations.Mapper;
+    +
+    +import org.springframework.stereotype.Repository;
+    +import com.example.demo.pojo.User;
+    +
+    +/*
+    + * UserMapper.java
+    + * Copyright (C) 2021 2021-03-22 19:34 kalipy <kalipy@debian>
+    + *
+    + * Distributed under terms of the MIT license.
+    + */
+    +
+    +@Repository 
+    +@Mapper
+    +public interface UserMapper
+    +{
+    +    public User queryUserByName(String name);
+    +}
+    +
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/pojo/User.java b/demo_shiro/demo/src/main/java/com/example/demo/pojo/User.java
+    new file mode 100644
+    index 0000000..c85043b
+    --- /dev/null
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/pojo/User.java
+    @@ -0,0 +1,58 @@
+    +package com.example.demo.pojo;
+    +
+    +/*
+    + * User.java
+    + * Copyright (C) 2021 2021-03-22 18:55 kalipy <kalipy@debian>
+    + *
+    + * Distributed under terms of the MIT license.
+    + */
+    +
+    +public class User
+    +{
+    +    private int id;
+    +    private String name;
+    +    private String pwd;
+    +
+    +    public int getId() {
+    +        return id;
+    +    }
+    +
+    +    public void setId(int id) {
+    +        this.id = id;
+    +    }
+    +
+    +    public String getName() {
+    +        return name;
+    +    }
+    +
+    +    public void setName(String name) {
+    +        this.name = name;
+    +    }
+    +
+    +    public String getPwd() {
+    +        return pwd;
+    +    }
+    +
+    +    public void setPwd(String pwd) {
+    +        this.pwd = pwd;
+    +    }
+    +
+    +    public User(int id, String name, String pwd) {
+    +        this.id = id;
+    +        this.name = name;
+    +        this.pwd = pwd;
+    +    }
+    +
+    +    public User() {
+    +    }
+    +
+    +    @Override
+    +    public String toString() {
+    +        return "User{" +
+    +            "id = " + getId() +
+    +            ", name = " + getName() +
+    +            ", pwd = " + getPwd() +
+    +            "}";
+    +    }
+    +
+    +}
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/service/UserService.java b/demo_shiro/demo/src/main/java/com/example/demo/service/UserService.java
+    new file mode 100644
+    index 0000000..6613e6b
+    --- /dev/null
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/service/UserService.java
+    @@ -0,0 +1,16 @@
+    +package com.example.demo.service;
+    +
+    +
+    +import com.example.demo.pojo.User;
+    +/*
+    + * UserService.java
+    + * Copyright (C) 2021 2021-03-22 19:43 kalipy <kalipy@debian>
+    + *
+    + * Distributed under terms of the MIT license.
+    + */
+    +
+    +public interface UserService
+    +{
+    +    public User queryUserByName(String name); 
+    +}
+    +
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/service/UserServiceImpl.java b/demo_shiro/demo/src/main/java/com/example/demo/service/UserServiceImpl.java
+    new file mode 100644
+    index 0000000..119af0c
+    --- /dev/null
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/service/UserServiceImpl.java
+    @@ -0,0 +1,27 @@
+    +package com.example.demo.service;
+    +
+    +import org.springframework.beans.factory.annotation.Autowired;
+    +
+    +import org.springframework.stereotype.Service;
+    +
+    +import com.example.demo.mapper.UserMapper;
+    +
+    +import com.example.demo.pojo.User;
+    +
+    +/*
+    + * UserServiceImpl.java
+    + * Copyright (C) 2021 2021-03-22 19:46 kalipy <kalipy@debian>
+    + *
+    + * Distributed under terms of the MIT license.
+    + */
+    +@Service
+    +public class UserServiceImpl implements UserService {
+    +    @Autowired
+    +    UserMapper userMapper;
+    +
+    +    @Override 
+    +    public User queryUserByName(String name) {
+    +        return userMapper.queryUserByName(name);    
+    +    }
+    +}
+    +
+    diff --git a/demo_shiro/demo/src/main/resources/application.properties b/demo_shiro/demo/src/main/resources/application.properties
+    index 8b13789..99536a1 100644
+    --- a/demo_shiro/demo/src/main/resources/application.properties
+    +++ b/demo_shiro/demo/src/main/resources/application.properties
+    @@ -1 +1,2 @@
+    -
+    +mybatis.type-aliases-package=com.example.demo.pojo
+    +mybatis.mapper-locations=classpath:mapper/*.xml
+    diff --git a/demo_shiro/demo/src/main/resources/application.yml b/demo_shiro/demo/src/main/resources/application.yml
+    new file mode 100644
+    index 0000000..3472c90
+    --- /dev/null
+    +++ b/demo_shiro/demo/src/main/resources/application.yml
+    @@ -0,0 +1,7 @@
+    +spring:
+    +    datasource:
+    +        username: root
+    +        password: Abcd1234
+    +        url: jdbc:mysql://127.0.0.1:3306/mybatis?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+    +        driver-class-name: com.mysql.cj.jdbc.Driver
+    +        type: com.alibaba.druid.pool.DruidDataSource
+    diff --git a/demo_shiro/demo/src/main/resources/mapper/UserMapper.xml b/demo_shiro/demo/src/main/resources/mapper/UserMapper.xml
+    new file mode 100644
+    index 0000000..07da042
+    --- /dev/null
+    +++ b/demo_shiro/demo/src/main/resources/mapper/UserMapper.xml
+    @@ -0,0 +1,12 @@
+    +<?xml version="1.0" encoding="UTF-8" ?>
+    +    <!DOCTYPE mapper
+    +      PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+    +      "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    +    <mapper namespace="com.example.demo.mapper.UserMapper">
+    +
+    +        <select id="queryUserByName" parameterType="String" resultType="User">
+    +            select * from mybatis.user
+    +            where name = #{name}
+    +        </select>
+    +
+    +    </mapper>
+    diff --git a/demo_shiro/demo/src/test/java/com/example/demo/DemoApplicationTests.java b/demo_shiro/demo/src/test/java/com/example/demo/DemoApplicationTests.java
+    index 2778a6a..d4142c2 100644
+    --- a/demo_shiro/demo/src/test/java/com/example/demo/DemoApplicationTests.java
+    +++ b/demo_shiro/demo/src/test/java/com/example/demo/DemoApplicationTests.java
+    @@ -1,13 +1,21 @@
+     package com.example.demo;
+     
+     import org.junit.jupiter.api.Test;
+    +
+    +import org.springframework.beans.factory.annotation.Autowired;
+    +
+     import org.springframework.boot.test.context.SpringBootTest;
+    +import com.example.demo.service.UserServiceImpl;
+     
+     @SpringBootTest
+     class DemoApplicationTests {
+     
+    +    @Autowired
+    +    UserServiceImpl userService;
+    +
+            @Test
+            void contextLoads() {
+    +        System.out.println(userService.queryUserByName("admin"));
+            }
+     
+     }
+
+#### 完整代码如下
+
+##### 代码结构 
+
+    kalipy@debian ~/b/j/k/d/demo> tree src/
+    src/
+    ├── main
+    │   ├── java
+    │   │   └── com
+    │   │       └── example
+    │   │           └── demo
+    │   │               ├── config
+    │   │               │   ├── ShiroConfig.java
+    │   │               │   └── UserRealm.java
+    │   │               ├── controller
+    │   │               │   └── MyController.java
+    │   │               ├── DemoApplication.java
+    │   │               ├── mapper
+    │   │               │   └── UserMapper.java
+    │   │               ├── pojo
+    │   │               │   └── User.java
+    │   │               └── service
+    │   │                   ├── UserServiceImpl.java
+    │   │                   └── UserService.java
+    │   └── resources
+    │       ├── application.properties
+    │       ├── application.yml
+    │       ├── mapper
+    │       │   └── UserMapper.xml
+    │       ├── static
+    │       └── templates
+    │           ├── index.html
+    │           ├── login.html
+    │           └── user
+    │               ├── add.html
+    │               └── update.html
+    └── test
+        └── java
+            └── com
+                └── example
+                    └── demo
+                        └── DemoApplicationTests.java
+
+##### build.gradle导入依赖
+
+    plugins {
+    	id 'org.springframework.boot' version '2.4.4'
+    	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    	id 'java'
+    }
+    
+    group = 'com.example'
+    version = '0.0.1-SNAPSHOT'
+    sourceCompatibility = '1.8'
+    
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/central'}
+        maven { url 'https://maven.aliyun.com/repository/google'}
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin'}
+        maven { url 'https://maven.aliyun.com/repository/spring'}
+        maven { url 'https://maven.aliyun.com/repository/spring-plugin'}
+        maven { url 'https://maven.aliyun.com/repository/apache-snapshots'}
+    
+        mavenLocal()
+        mavenCentral()
+    }
+    
+    dependencies {
+    	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    	implementation 'org.springframework.boot:spring-boot-starter-web'
+    	
+    	implementation 'org.apache.shiro:shiro-spring:1.4.1'
+        implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+        runtimeOnly 'mysql:mysql-connector-java'
+        implementation 'com.alibaba:druid:1.1.21'
+        implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:2.1.4'
+        implementation 'log4j:log4j:1.2.17'
+        
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    }
+    
+    test {
+    	useJUnitPlatform()
+    }
+
+##### 编写配置文件
+
+application.yml
+
+    spring:
+        datasource:
+            username: root
+            password: Abcd1234
+            url: jdbc:mysql://127.0.0.1:3306/mybatis?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+            driver-class-name: com.mysql.cj.jdbc.Driver
+            type: com.alibaba.druid.pool.DruidDataSource
+    
+application.properties
+
+    mybatis.type-aliases-package=com.example.demo.pojo
+    mybatis.mapper-locations=classpath:mapper/*.xml
+
+##### 编写pojo
+
+User.java
+
+    public class User
+    {
+        private int id;
+        private String name;
+        private String pwd;
+        
+        setget...
+    }
+
+##### 编写xxMapper类
+
+UserMapper.java
+
+    package com.example.demo.mapper;
+    
+    import org.apache.ibatis.annotations.Mapper;
+    
+    import org.springframework.stereotype.Repository;
+    import com.example.demo.pojo.User;
+    
+    /*
+     * UserMapper.java
+     * Copyright (C) 2021 2021-03-22 19:34 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    
+    @Repository 
+    @Mapper
+    public interface UserMapper
+    {
+        public User queryUserByName(String name);
+    }
+
+##### 编写xxMapper.xml
+
+UserMapper.xml
+
+    <?xml version="1.0" encoding="UTF-8" ?>
+        <!DOCTYPE mapper
+          PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+          "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+        <mapper namespace="com.example.demo.mapper.UserMapper">
+    
+            <select id="queryUserByName" parameterType="String" resultType="User">
+                select * from mybatis.user
+                where name = #{name}
+            </select>
+    
+        </mapper>
+
+##### 编写service层
+
+UserService.java
+
+    package com.example.demo.service;
+    
+    import com.example.demo.pojo.User;
+    /*
+     * UserService.java
+     * Copyright (C) 2021 2021-03-22 19:43 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    
+    public interface UserService
+    {
+        public User queryUserByName(String name); 
+    }
+
+##### 编写service_impl层
+
+UserServiceImpl.java
+
+    package com.example.demo.service;
+    
+    import org.springframework.beans.factory.annotation.Autowired;
+    
+    import org.springframework.stereotype.Service;
+    
+    import com.example.demo.mapper.UserMapper;
+    
+    import com.example.demo.pojo.User;
+    
+    /*
+     * UserServiceImpl.java
+     * Copyright (C) 2021 2021-03-22 19:46 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    @Service
+    public class UserServiceImpl implements UserService {
+        @Autowired
+        UserMapper userMapper;
+    
+        @Override 
+        public User queryUserByName(String name) {
+            return userMapper.queryUserByName(name);    
+        }
+    }
+
+##### 编写单元测试
+
+    package com.example.demo;
+    
+    import org.junit.jupiter.api.Test;
+    
+    import org.springframework.beans.factory.annotation.Autowired;
+    
+    import org.springframework.boot.test.context.SpringBootTest;
+    import com.example.demo.service.UserServiceImpl;
+    
+    @SpringBootTest
+    class DemoApplicationTests {
+    
+        @Autowired
+        UserServiceImpl userService;
+    
+    	@Test
+    	void contextLoads() {
+            System.out.println(userService.queryUserByName("admin"));
+    	}
+    
+    }
+
+##### 编写控制层
+
+MyController.java
+
+    package com.example.demo.controller;
+    
+    import org.apache.catalina.security.SecurityUtil;
+    
+    import org.apache.shiro.SecurityUtils;
+    import org.apache.shiro.authc.IncorrectCredentialsException;
+    import org.apache.shiro.authc.UnknownAccountException;
+    import org.apache.shiro.authc.UsernamePasswordToken;
+    import org.apache.shiro.subject.Subject;
+    
+    import org.springframework.stereotype.Controller;
+    import org.springframework.ui.Model;
+    
+    import org.springframework.web.bind.annotation.RequestMapping;
+    
+    /*
+     * MyController.java
+     * Copyright (C) 2021 2021-03-22 17:24 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    @Controller
+    public class MyController
+    {
+        @RequestMapping({"/", "/index"}) 
+        public String toIndex(Model model) {
+            model.addAttribute("msg", "hello Shiro");
+            return "index";
+        }
+        @RequestMapping("/user/add") 
+        public String add() {
+            return "user/add";
+        }
+        @RequestMapping("/user/update") 
+        public String update() {
+            return "user/update";
+        }
+        @RequestMapping("/toLogin") 
+        public String toLogin() {
+            return "login";
+        }
+        @RequestMapping("/login") 
+        public String login(String username, String password, Model model) {
+            //获取当前用户
+            Subject subject = SecurityUtils.getSubject();
+            //封装用户登录的数据
+            UsernamePasswordToken token = new UsernamePasswordToken(username, password);
+    
+            try {
+                subject.login(token);//执行登录方法,会把用户信息提交到doGetAuthtication认证方法中校验用户信息
+                return "index";
+            } catch (UnknownAccountException e) {
+                model.addAttribute("msg", "用户名错误");
+                return "login";
+            } catch (IncorrectCredentialsException e) {
+                model.addAttribute("msg", "密码错误");
+                return "login";
+            }
+        }
+    }
+
+##### 编写Shiro的config类
+
+ShiroConfig.java
+
+    package com.example.demo.config;
+    
+    import java.util.LinkedHashMap;
+    import java.util.Map;
+    
+    import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
+    
+    import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
+    
+    import org.springframework.beans.factory.annotation.Qualifier;
+    
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+    
+    /*
+     * ShiroConfig.java
+     * Copyright (C) 2021 2021-03-22 17:01 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    @Configuration
+    public class ShiroConfig
+    {
+        //ShiroFilterFactoryBean
+        @Bean
+        public ShiroFilterFactoryBean getShiroFilterFactoryBean(@Qualifier("securityManager") DefaultWebSecurityManager defaultWebSecurityManager) {
+            ShiroFilterFactoryBean bean = new ShiroFilterFactoryBean();
+            //设置安全管理器
+            bean.setSecurityManager(defaultWebSecurityManager);
+    
+            //添加shiro的内置过滤器
+            /*
+             * anon: 无需认证就可以访问
+             * authc: 必须认证才能访问
+             * user: 必须拥有 记住我 功能才能用
+             * perms: 拥有对某个资源的权限才能访问
+             * role: 拥有某个角色权限才能访问
+             */
+            Map<String, String> filterMap = new LinkedHashMap<>();
+    
+            filterMap.put("/user/add", "authc");
+            filterMap.put("/user/update", "authc");
+    
+            bean.setFilterChainDefinitionMap(filterMap);
+            //设置登录页面的请求地址
+            bean.setLoginUrl("/toLogin");
+    
+            return bean;
+        }
+        //DefaultWebSecurityManager
+        @Bean(name="securityManager")
+        public DefaultWebSecurityManager getDefaultWebSecurityManager(@Qualifier("userRealm") UserRealm userRealm) {
+            DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
+            //关联UserRealm
+            securityManager.setRealm(userRealm);
+            return securityManager;
+        }
+    
+        //创建realm对象,需要自定义类
+        @Bean
+        public UserRealm userRealm() {
+            return new UserRealm();
+        }
+    }
+
+UserRealm.java
+
+    package com.example.demo.config;
+    
+    import org.apache.shiro.authc.AuthenticationException;
+    import org.apache.shiro.authc.AuthenticationInfo;
+    import org.apache.shiro.authc.AuthenticationToken;
+    import org.apache.shiro.authc.SimpleAuthenticationInfo;
+    import org.apache.shiro.authc.UsernamePasswordToken;
+    import org.apache.shiro.authz.AuthorizationInfo;
+    import org.apache.shiro.realm.AuthorizingRealm;
+    import org.apache.shiro.subject.PrincipalCollection;
+    
+    import org.springframework.beans.factory.annotation.Autowired;
+    
+    import com.example.demo.pojo.User;
+    import com.example.demo.service.UserService;
+    
+    /*
+     * UserRealm.java
+     * Copyright (C) 2021 2021-03-22 17:03 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    
+    //自定义的UserRealm
+    public class UserRealm extends AuthorizingRealm
+    {
+        @Autowired
+        UserService userService;
+    
+        //授权
+        @Override 
+        protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principals)
+        {
+            System.out.println("执行了授权方法..");
+            return null;
+        }
+    
+        //认证
+        @Override 
+        protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) throws AuthenticationException {
+            System.out.println("执行了认证方法..");
+    
+            UsernamePasswordToken userToken = (UsernamePasswordToken) token;
+    
+            //查询数据库
+            User user = userService.queryUserByName(userToken.getUsername());
+    
+            if (user == null) {
+                return null;//会自动抛出异常(UnknownAccountException)
+            }
+    
+            //密码认证,shiro自动做了
+            return new SimpleAuthenticationInfo("", user.getPwd(), ""); 
+        }
+    }
+
+##### 测试
+
+浏览器访问http://127.0.0.1:8080/ ,分别点击add或update的超链接跳转到登录页后，分别输入正确用户密码和错误用户名密码，查看是否可以认证成功或失败

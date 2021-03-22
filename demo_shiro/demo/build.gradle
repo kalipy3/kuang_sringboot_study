@@ -26,6 +26,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	
 	implementation 'org.apache.shiro:shiro-spring:1.4.1'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    runtimeOnly 'mysql:mysql-connector-java'
+    implementation 'com.alibaba:druid:1.1.21'
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:2.1.4'
+    implementation 'log4j:log4j:1.2.17'
     
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
