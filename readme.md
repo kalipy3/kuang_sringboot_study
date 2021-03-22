@@ -1640,3 +1640,134 @@ UserRealm.java
 ##### 测试
 
 浏览器访问http://127.0.0.1:8080/ ,分别点击add或update的超链接跳转到登录页后，分别输入正确用户密码和错误用户名密码，查看是否可以认证成功或失败
+
+### shiro请求授权实现
+
+#### 代码编写
+
+自己看git与上次的对比
+
+    kalipy@debian ~/b/j/k/d/demo> git diff HEAD
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/config/ShiroConfig.java b/demo_shiro/demo/src/main/java/com/example/demo/config/ShiroConfig.java
+    index 23ae105..9dc71b3 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/config/ShiroConfig.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/config/ShiroConfig.java
+    @@ -36,15 +36,23 @@ public class ShiroConfig
+              * perms: 拥有对某个资源的权限才能访问
+              * role: 拥有某个角色权限才能访问
+              */
+    -        Map<String, String> filterMap = new LinkedHashMap<>();
+     
+    -        filterMap.put("/user/add", "authc");
+    -        filterMap.put("/user/update", "authc");
+    +        //拦截
+    +        Map<String, String> filterMap = new LinkedHashMap<>();
+     
+    +        //授权,正常情况下，未授权会跳转到未授权页面
+    +        filterMap.put("/user/add", "perms[user:add]");//这里只是设置权限，并没有把权限赋给用户，把权限赋给用户是在UserRealm类的授权方法中进行的
+    +        filterMap.put("/user/update", "perms[user:update]");
+    +        
+    +        filterMap.put("/user/*", "authc");
+             bean.setFilterChainDefinitionMap(filterMap);
+    +        
+             //设置登录页面的请求地址
+             bean.setLoginUrl("/toLogin");
+     
+    +        //未授权页面
+    +        bean.setUnauthorizedUrl("/noauth");
+    +
+             return bean;
+         }
+         //DefaultWebSecurityManager
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java b/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    index 6fd5cca..9b861ed 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    @@ -1,13 +1,16 @@
+     package com.example.demo.config;
+     
+    +import org.apache.shiro.SecurityUtils;
+     import org.apache.shiro.authc.AuthenticationException;
+     import org.apache.shiro.authc.AuthenticationInfo;
+     import org.apache.shiro.authc.AuthenticationToken;
+     import org.apache.shiro.authc.SimpleAuthenticationInfo;
+     import org.apache.shiro.authc.UsernamePasswordToken;
+     import org.apache.shiro.authz.AuthorizationInfo;
+    +import org.apache.shiro.authz.SimpleAuthorizationInfo;
+     import org.apache.shiro.realm.AuthorizingRealm;
+     import org.apache.shiro.subject.PrincipalCollection;
+    +import org.apache.shiro.subject.Subject;
+     
+     import org.springframework.beans.factory.annotation.Autowired;
+     
+    @@ -32,7 +35,17 @@ public class UserRealm extends AuthorizingRealm
+         protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principals)
+         {
+             System.out.println("执行了授权方法..");
+    -        return null;
+    +
+    +        SimpleAuthorizationInfo info = new SimpleAuthorizationInfo();
+    +
+    +        //拿到当前登录的对象
+    +        Subject subject = SecurityUtils.getSubject();
+    +        User currentUser = (User) subject.getPrincipal();//拿到user对象
+    +
+    +        //设置当前用户的权限
+    +        info.addStringPermission(currentUser.getPerms());
+    +
+    +        return info;
+         }
+     
+         //认证
+    @@ -50,7 +63,7 @@ public class UserRealm extends AuthorizingRealm
+             }
+     
+             //密码认证,shiro自动做了
+    -        return new SimpleAuthenticationInfo("", user.getPwd(), ""); 
+    +        return new SimpleAuthenticationInfo(user, user.getPwd(), "");//第一个参数(principal)的含义是把这里的uesr传递给上面的授权方法
+         }
+     }
+     
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java b/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    index 952a6e9..a42bd38 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    @@ -12,6 +12,7 @@ import org.springframework.stereotype.Controller;
+     import org.springframework.ui.Model;
+     
+     import org.springframework.web.bind.annotation.RequestMapping;
+    +import org.springframework.web.bind.annotation.ResponseBody;
+     
+     /*
+      * MyController.java
+    @@ -57,5 +58,11 @@ public class MyController
+                 return "login";
+             }
+         }
+    +
+    +    @RequestMapping("/noauth")
+    +    @ResponseBody
+    +    public String unauthorized() {
+    +        return "您未经授权 无法访问此页面";
+    +    }
+     }
+     
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/pojo/User.java b/demo_shiro/demo/src/main/java/com/example/demo/pojo/User.java
+    index c85043b..86cf5d2 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/pojo/User.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/pojo/User.java
+    @@ -12,6 +12,17 @@ public class User
+         private int id;
+         private String name;
+         private String pwd;
+    +    private String perms;
+    +
+    +    public User() {
+    +    }
+    +
+    +    public User(int id, String name, String pwd, String perms) {
+    +        this.id = id;
+    +        this.name = name;
+    +        this.pwd = pwd;
+    +        this.perms = perms;
+    +    }
