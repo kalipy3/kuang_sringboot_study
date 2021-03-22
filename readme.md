@@ -818,4 +818,112 @@ index.html
 
 浏览器访问`http://127.0.0.1:8080/`,分别点击add 和 update的超链接，发现被拦截到登录页去了
 
+### Shiro实现用户认证
 
+#### 代码编写
+
+自己看git与上次(Springboot Shiro登录拦截)的对比
+
+    kalipy@debian ~/b/j/k/d/demo> git diff HEAD
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java b/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    index 5d3c201..386a4fb 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/config/UserRealm.java
+    @@ -3,6 +3,8 @@ package com.example.demo.config;
+     import org.apache.shiro.authc.AuthenticationException;
+     import org.apache.shiro.authc.AuthenticationInfo;
+     import org.apache.shiro.authc.AuthenticationToken;
+    +import org.apache.shiro.authc.SimpleAuthenticationInfo;
+    +import org.apache.shiro.authc.UsernamePasswordToken;
+     import org.apache.shiro.authz.AuthorizationInfo;
+     import org.apache.shiro.realm.AuthorizingRealm;
+     import org.apache.shiro.subject.PrincipalCollection;
+    @@ -29,7 +31,19 @@ public class UserRealm extends AuthorizingRealm
+         @Override 
+         protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) throws AuthenticationException {
+             System.out.println("执行了认证方法..");
+    -        return null;
+    +
+    +        //我们这里为了方便，直接不从数据库里取，而是硬编码伪造user
+    +        String name = "root";
+    +        String password = "123456";
+    +
+    +        UsernamePasswordToken userToken = (UsernamePasswordToken) token;
+    +
+    +        if (!userToken.getUsername().equals(name)) {
+    +            return null;//会自动抛出异常(UnknownAccountException)
+    +        }
+    +
+    +        //密码认证,shiro自动做了
+    +        return new SimpleAuthenticationInfo("", password, ""); 
+         }
+     }
+     
+    diff --git a/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java b/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    index d47bedb..952a6e9 100644
+    --- a/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    +++ b/demo_shiro/demo/src/main/java/com/example/demo/controller/MyController.java
+    @@ -1,5 +1,13 @@
+     package com.example.demo.controller;
+     
+    +import org.apache.catalina.security.SecurityUtil;
+    +
+    +import org.apache.shiro.SecurityUtils;
+    +import org.apache.shiro.authc.IncorrectCredentialsException;
+    +import org.apache.shiro.authc.UnknownAccountException;
+    +import org.apache.shiro.authc.UsernamePasswordToken;
+    +import org.apache.shiro.subject.Subject;
+    +
+     import org.springframework.stereotype.Controller;
+     import org.springframework.ui.Model;
+     
+    @@ -31,5 +39,23 @@ public class MyController
+         public String toLogin() {
+             return "login";
+         }
+    +    @RequestMapping("/login") 
+    +    public String login(String username, String password, Model model) {
+    +        //获取当前用户
+    +        Subject subject = SecurityUtils.getSubject();
+    +        //封装用户登录的数据
+    +        UsernamePasswordToken token = new UsernamePasswordToken(username, password);
+    +
+    +        try {
+    +            subject.login(token);//执行登录方法,会把用户信息提交到doGetAuthtication
+    认证方法中校验用户信息
+    +            return "index";
+    +        } catch (UnknownAccountException e) {
+    +            model.addAttribute("msg", "用户名错误");
+    +            return "login";
+    +        } catch (IncorrectCredentialsException e) {
+    +            model.addAttribute("msg", "密码错误");
+    +            return "login";
+    +        }
+    +    }
+     }
+     
+    diff --git a/demo_shiro/demo/src/main/resources/templates/login.html b/demo_shiro/demo/src/main/resources/templates/login.html
+    index 9e151d5..fd1922b 100644
+    --- a/demo_shiro/demo/src/main/resources/templates/login.html
+    +++ b/demo_shiro/demo/src/main/resources/templates/login.html
+    @@ -1,5 +1,5 @@
+     <!DOCTYPE html>
+    -<html>
+    +<html lang="en" xmlns:th="http://www.thymeleaf.org">
+            <head>
+             <meta charset="utf-8" />
+                    <title>Login</title>
+    @@ -7,7 +7,8 @@
+            <body>
+                <h1>登录</h1>
+             <hr>
+    -        <form action="">
+    +        <p th:text="${msg}" style="color: red;"></p>
+    +        <form th:action="@{/login}">
+                 <p>用户名:<input type="text" name="username"></p>
+                 <p>密码:<input type="text" name="password"></p>
+                 <p><input type="submit"></p>
+
+#### 测试
+
+浏览器访问`http://127.0.0.1:8080/`,分别点击add或update的超链接跳转到登录页后，分别输入正确用户密码和错误用户名密码，查看是否可以认证成功或失败
