@@ -2329,4 +2329,58 @@ application.properties
 
 ![Image](./img/image_2021-03-23-20-52-01.png)
 
+#### 定时任务
 
+    TaskScheduler
+    TaskExecutor
+
+    @EnableScheduling//开启定时功能
+    @Scheduled//什么时候执行
+
+    cron规则
+
+demo
+
+    kalipy@debian ~/b/j/kuansen_springboot> git diff HEAD
+    diff --git a/demo_task/demo/src/main/java/com/example/demo/DemoApplication.java b/demo_task/demo/src/main/java/com/example/demo/DemoApplication.java
+    index 441f395..26ae362 100644
+    --- a/demo_task/demo/src/main/java/com/example/demo/DemoApplication.java
+    +++ b/demo_task/demo/src/main/java/com/example/demo/DemoApplication.java
+    @@ -5,8 +5,10 @@ import org.springframework.boot.SpringApplication;
+     import org.springframework.boot.autoconfigure.SpringBootApplication;
+     
+     import org.springframework.scheduling.annotation.EnableAsync;
+    +import org.springframework.scheduling.annotation.EnableScheduling;
+     
+     @EnableAsync//开启异步功能
+    +@EnableScheduling//开启定时任务功能
+     @SpringBootApplication
+     public class DemoApplication {
+     
+    diff --git a/demo_task/demo/src/main/java/com/example/demo/service/ScheduledService.java b/demo_task/demo/src/main/java/com/example/demo/service/ScheduledService.java
+    new file mode 100644
+    index 0000000..8afa6c1
+    --- /dev/null
+    +++ b/demo_task/demo/src/main/java/com/example/demo/service/ScheduledService.java
+    @@ -0,0 +1,21 @@
+    +package com.example.demo.service;
+    +
+    +import org.springframework.scheduling.annotation.Scheduled;
+    +import org.springframework.stereotype.Service;
+    +
+    +/*
+    + * ScheduledService.java
+    + * Copyright (C) 2021 2021-03-23 20:58 kalipy <kalipy@debian>
+    + *
+    + * Distributed under terms of the MIT license.
+    + */
+    +@Service
+    +public class ScheduledService
+    +{
+    +    //秒 分 时 日 月 周几
+    +    @Scheduled(cron = "11 8 21 * * ?")//每天21点8分11秒执行一次
+    +    public void hello() {
+    +        System.out.println("ScheduledService hello被执行了..");
+    +    }
+    +}
+    +
