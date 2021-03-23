@@ -1771,3 +1771,79 @@ UserRealm.java
     +        this.pwd = pwd;
     +        this.perms = perms;
     +    }
+
+
+### Swagger介绍及集成
+
+* 号称世界最流行的api框架
+
+* RestFul Api风格文档在线自动生成工具,文档与api定义同步更新
+
+* 直接运行，可以在线测试api接口
+
+* 支持多种语言
+
+前后端分离产生的问题:
+
+* 前后端联调，api的字段经常不一致
+
+解决办法:
+
+* 首先指定计划，实时的更新最新api文档，降低集成的风险
+
+* 早些年: 指定word计划变更文档
+
+* 前后端分离后:
+
+    * 前端测试后端接口: postman
+
+    * 后端提供接口，需要实时更新最新的消息及改动
+
+在项目中使用swagger需要springbox
+
+* swagger2
+* ui
+
+#### springBoot集成swagger
+
+新建一个springboot的web项目
+
+导入依赖
+
+    implementation 'io.springfox:springfox-swagger2:2.9.2'
+    implementation 'io.springfox:springfox-swagger-ui:2.9.2'
+
+编写hello
+
+配置swagger
+
+    ├── main
+    │   ├── java
+    │   │   └── com
+    │   │       └── example
+    │   │           └── demo
+    │   │               ├── config
+    │   │               │   ├── SwaggerConfig.java
+
+SwaggerConfig.java
+
+    import org.springframework.context.annotation.Configuration;
+    import springfox.documentation.swagger2.annotations.EnableSwagger2;
+    /*
+     * SwaggerConfig.java
+     * Copyright (C) 2021 2021-03-23 12:44 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    
+    @Configuration
+    @EnableSwagger2
+    public class SwaggerConfig {
+    
+    }
+
+测试
+
+浏览器访问`http://127.0.0.1:8080/swagger-ui.html`
+
+

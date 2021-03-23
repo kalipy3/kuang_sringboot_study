@@ -8,6 +8,7 @@ group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '1.8'
 
+
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public' }
     maven { url 'https://maven.aliyun.com/repository/central'}
@@ -22,17 +23,11 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	
-	implementation 'org.apache.shiro:shiro-spring:1.4.1'
-    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
-    runtimeOnly 'mysql:mysql-connector-java'
-    implementation 'com.alibaba:druid:1.1.21'
-    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:2.1.4'
-    implementation 'log4j:log4j:1.2.17'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
     
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    implementation 'io.springfox:springfox-swagger2:2.9.2'
+    implementation 'io.springfox:springfox-swagger-ui:2.9.2'
 }
 
 test {
