@@ -2132,3 +2132,115 @@ SwaggerConfig.java
 ![Image](./img/image_2021-03-23-19-33-41.png)
 
 ![Image](./img/image_2021-03-23-19-34-05.png)
+
+### springboot 任务
+
+* 异步任务
+
+* 定时任务
+
+* 邮件任务
+
+#### 异步任务
+
+创建一个springboot的web项目
+
+AsyncService.java
+
+    package com.example.demo.service;
+    
+    import org.springframework.stereotype.Service;
+    
+    /*
+     * AsyncService.java
+     * Copyright (C) 2021 2021-03-23 19:44 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    
+    @Service
+    public class AsyncService
+    {
+        public void hello() {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println("数据正在处理..");
+        }
+    }
+
+AsyncController.java
+
+    package com.example.demo.controller;
+    
+    import org.springframework.beans.factory.annotation.Autowired;
+    
+    import org.springframework.web.bind.annotation.RequestMapping;
+    import org.springframework.web.bind.annotation.RestController;
+    
+    import com.example.demo.service.AsyncService;
+    /*
+     * AsyncController.java
+     * Copyright (C) 2021 2021-03-23 19:47 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    @RestController
+    public class AsyncController
+    {
+        @Autowired
+        AsyncService asyncService;
+    
+        @RequestMapping
+        public String hello() {
+            asyncService.hello();//前端页面会加载3秒
+            return "ok";
+        }
+    }
+
+测试
+
+浏览器访问`127.0.0.1:8080`,发现前端会转圈3秒才返回hello()的响应
+
+![Image](./img/image_2021-03-23-19-59-25.png)
+
+##### 刚才的是非异步的，前端会阻塞3秒,现在我们开启异步功能，这样就不会阻塞了
+
+* @EnableAsync//开启异步功能
+* @Async//告诉spring这是一个异步的方法
+
+只需要加上上面2个注解即可开启异步功能
+
+    @EnableAsync//开启异步功能
+    @SpringBootApplication
+    public class DemoApplication {
+    
+    	public static void main(String[] args) {
+    		SpringApplication.run(DemoApplication.class, args);
+    	}
+    
+    }
+
+    /*
+     * AsyncService.java
+     * Copyright (C) 2021 2021-03-23 19:44 kalipy <kalipy@debian>
+     *
+     * Distributed under terms of the MIT license.
+     */
+    
+    @Service
+    public class AsyncService
+    {
+        @Async//告诉spring这是一个异步的方法
+        public void hello() {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println("数据正在处理..");
+        }
+    }
+
