@@ -2016,3 +2016,119 @@ SwaggerConfig.java
     spring.profiles.active=pro
 
 ![Image](./img/image_2021-03-23-18-54-34.png)
+
+#### swagger接口注释
+
+请自己看git的变化
+
+    kalipy@debian ~/b/j/kuansen_springboot> git diff HEAD
+    diff --git a/.readme.md.swp b/.readme.md.swp
+    new file mode 100644
+    index 0000000..591c836
+    Binary files /dev/null and b/.readme.md.swp differ
+    diff --git a/demo_swagger/demo/src/main/java/com/example/demo/controller/HelloController.java b/demo_swagger/demo/src/main/java/com/example/demo/controller/HelloController.java
+    new file mode 100644
+    index 0000000..0898619
+    --- /dev/null
+    +++ b/demo_swagger/demo/src/main/java/com/example/demo/controller/HelloController.java
+    @@ -0,0 +1,44 @@
+    +package com.example.demo.controller;
+    +
+    +import io.swagger.annotations.ApiOperation;
+    +import io.swagger.annotations.ApiParam;
+    +
+    +import org.springframework.web.bind.annotation.GetMapping;
+    +import org.springframework.web.bind.annotation.PostMapping;
+    +import org.springframework.web.bind.annotation.RestController;
+    +
+    +import com.example.demo.pojo.User;
+    +/*
+    + * HelloController.java
+    + * Copyright (C) 2021 2021-03-23 19:07 kalipy <kalipy@debian>
+    + *
+    + * Distributed under terms of the MIT license.
+    + */
+    +
+    +@RestController
+    +public class HelloController
+    +{
+    +    @GetMapping(value = "/hello")
+    +    public String hello() {
+    +        return "hello";
+    +    }
+    +   
+    +    //只要我们的接口中，返回值中存在实体类，他就会被扫描到swagger中
+    +    @PostMapping(value = "/user")
+    +    public User user() {
+    +        return new User();
+    +    }
+    +
+    +    @ApiOperation("hello2...")
+    +    @GetMapping(value = "/hello2")
+    +    public String hello2(@ApiParam("用户名") String username) {
+    +        return "hello2" + username;
+    +    }
+    +    
+    +    @ApiOperation("Post...")
+    +    @PostMapping(value = "/post2")
+    +    public User post2(@ApiParam("用户名") User user) {
+    +        return user;
+    +    }
+    +}
+    +
+    diff --git a/demo_swagger/demo/src/main/java/com/example/demo/pojo/User.java b/demo_swagger/demo/src/main/java/com/example/demo/pojo/User.java
+    new file mode 100644
+    index 0000000..18485a5
+    --- /dev/null
+    +++ b/demo_swagger/demo/src/main/java/com/example/demo/pojo/User.java
+    @@ -0,0 +1,37 @@
+    +package com.example.demo.pojo;
+    +
+    +import io.swagger.annotations.ApiModel;
+    +import io.swagger.annotations.ApiModelProperty;
+    +
+    +/*
+    + * User.java
+    + * Copyright (C) 2021 2021-03-23 19:11 kalipy <kalipy@debian>
+    + *
+    + * Distributed under terms of the MIT license.
+    + */
+    +@ApiModel("用户实体类")//给生产的文档加注释
+    +public class User
+    +{
+    +    @ApiModelProperty("用户名")//给生产的文档加注释
+    +    private String username;
+    +   
+    +    @ApiModelProperty("密码")
+    +    private String password;
+    +
+    +    public String getUsername() {
+    +        return username;
+    +    }
+    +
+    +    public void setUsername(String username) {
+    +        this.username = username;
+    +    }
+    +
+    +    public String getPassword() {
+    +        return password;
+    +    }
+    +
+    +    public void setPassword(String password) {
+    +        this.password = password;
+    +    }
+    +}
+    +
+    diff --git a/demo_swagger/demo/src/main/resources/application.properties b/demo_swagger/demo/src/main/resources/application.properties
+    index e31b866..cbb42d2 100644
+    --- a/demo_swagger/demo/src/main/resources/application.properties
+    +++ b/demo_swagger/demo/src/main/resources/application.properties
+    @@ -1 +1 @@
+    -spring.profiles.active=pro
+    +spring.profiles.active=dev
+
+浏览器访问效果
+
+![Image](./img/image_2021-03-23-19-33-41.png)
+
+![Image](./img/image_2021-03-23-19-34-05.png)
